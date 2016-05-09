@@ -1,135 +1,31 @@
-class MovieReviewsApp
-  # Put your code here !
-  	attr_accessor :tweet
-  	@tweet = {}
+class MovieReviewsApp 
+  attr_accessor :tweet
+  @tweet = Hash.new()
 
 	def self.call(*args)
-		@arguments = args;	
-		@arguments.each do |argument|
-			map_titles(argument)
-			map_information(argument)
+    args.map{|a| JSON.parse(a).map{|i|  append(i['title'], i)}}
+		return build_tweet(@tweet)	
+	end  
+  
+  def self.append(title, hash)
+    @tweet[title] ? @tweet[title].merge(hash) : @tweet[title] = hash
+  end
+ 
+	def self.build_tweet(input)
+		tweet, tweets = input, [] 
+		tweet.each do |k, v|  
+      t, r, s = v['title'], v['review'], get_stars(v['score']) 
+			y = " (#{v['year'].to_s})" if v['year']  
+			tweet = "#{t}#{y}: #{r} #{s}"
+      tweet = "#{t[0..24]}#{y}: #{r} #{s}"  if tweet.length > 140  
+      tweet = "#{t[0..24]}#{y}: #{r[0..(tweet.length - 139)]} #{s}" if tweet.length > 140 
+			tweets << tweet 
 		end
-
-		final_tweets = concatenate(reduce(@tweet))
-
-		return final_tweets		
+		return tweets
 	end 
 
-	def self.map_titles(information)
-		@information = JSON.parse(information)
-		# Map Titles
-		@information.each do |info_hash|
-			unless @tweet.has_key?(info_hash['title'])
-				@tweet[info_hash['title']] = []			
-			end	
-	 	end	
-
-	end
-
-	def self.map_information(information)
-		@information = JSON.parse(information)
-	 	@tweet.keys.each do |key| #Iterate over all the keys of the Tweet, this is an array
-			@information.each do |info| #Iterate over all the 
-				if info['title'] == key	
-					info.each do | k, v|
-						unless @tweet[key].include?(v)
-						   @tweet[key] <<  {k => v} 
-						end
-					end
-				end
-			end
-		end
-	end
-
-	def self.reduce(tweet)
-		tweet.each do |k, v|
-			tweet[k] = [v.reduce({}, :merge)]
-		end
-	end
-
-
-	def self.concatenate(information)
-		tweets = build_tweet(information)
-		return tweets
-	end
-
-	def self.check_year(year)
-		unless year.nil?
-			return year =  " (#{year.to_s})"	
-		end
-	end
-
-	def self.build_tweet(input)
-		tweet = input
-		tweets = []
-
-		tweet.each do |k , y|
-			y.each do |v|
-
-				title = v['title'] 
-				year = check_year(v['year'])
-				review = v['review']
-				score = get_stars(v['score'])
-				tweet = "#{title}#{year}: #{review} #{score}"
-
-
-				while check(tweet) do
-					title = check_title(title, tweet)	
-					tweet = "#{title}#{year}: #{review} #{score}"
-					review = check_review(review, tweet)
-				end
-				tweets << tweet
-			end
-		end
-		return tweets
-	end
-
-	def self.check(tweet)
-		if tweet.length > 140
-			return true
-		end
-	end
-
-	def self.check_title(title, tweet)
-		if title.length > 24
-			title = title[0..24]
-		end
-		return title
-	end
-
-	def self.check_review(review, tweet)
-		if check(tweet)
-			return review[0..(review.length - (tweet.length - 139))]	
-		end	
-	end
-
-	def self.get_stars(value)
-
-		stars = ''
-
-		int_value = value / 20
-		float_value = value.to_f / 20
-		result = float_value - int_value 
-
-		(1..int_value).each do 
-			stars << '★'
-		end
-
-		if result <= 0.5 && result != 0 
-			stars <<  "½"
-		else
-			if float_value < 5 
-				stars << '★'
-			end
-		end
-
-		return stars
-	end
-
-	
-
+	def self.get_stars(n)   
+    starts_partial =  (n % 20).between?(1,10) ? "½" : "*"
+    return (n % 20) == 0 ? '*' * (n / 20).to_i  : ('*' * (n / 20).to_i) + starts_partial   
+	end 
 end
-
-
-
-
